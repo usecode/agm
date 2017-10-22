@@ -150,6 +150,59 @@ var GoogleMapsAPIWrapper = (function () {
             map.mapTypes.set(id, mapType);
         });
     };
+    GoogleMapsAPIWrapper.prototype.USGSOverlay = function (bounds, image) {
+        return this._map.then(function (map) {
+            var overlay = new google.maps.OverlayView();
+            var boundsLatLng = new google.maps.LatLngBounds(new google.maps.LatLng(bounds[0], bounds[1]), new google.maps.LatLng(bounds[2], bounds[3]));
+            // Initialize all properties.
+            overlay.bounds_ = boundsLatLng;
+            overlay.image_ = image;
+            overlay.map_ = map;
+            // Define a property to hold the image's div. We'll
+            // actually create this div upon receipt of the onAdd()
+            // method so we'll leave it null for now.
+            overlay.div_ = null;
+            overlay.setMap(map);
+            overlay.onAdd = function () {
+                var div = document.createElement('div');
+                div.style.borderStyle = 'none';
+                div.style.borderWidth = '0px';
+                div.style.position = 'absolute';
+                // Create the img element and attach it to the div.
+                var img = document.createElement('img');
+                img.src = this.image_;
+                img.style.width = '100%';
+                img.style.height = '100%';
+                img.style.position = 'absolute';
+                div.appendChild(img);
+                overlay.div_ = div;
+                // Add the element to the "overlayLayer" pane.
+                var panes = overlay.getPanes();
+                panes.overlayLayer.appendChild(div);
+            };
+            overlay.draw = function () {
+                // We use the south-west and north-east
+                // coordinates of the overlay to peg it to the correct position and size.
+                // To do this, we need to retrieve the projection from the overlay.
+                var overlayProjection = overlay.getProjection();
+                // Retrieve the south-west and north-east coordinates of this overlay
+                // in LatLngs and convert them to pixel coordinates.
+                // We'll use these coordinates to resize the div.
+                var sw = overlayProjection.fromLatLngToDivPixel(overlay.bounds_.getSouthWest());
+                var ne = overlayProjection.fromLatLngToDivPixel(overlay.bounds_.getNorthEast());
+                // Resize the image's div to fit the indicated dimensions.
+                var div = overlay.div_;
+                div.style.left = sw.x + 'px';
+                div.style.top = ne.y + 'px';
+                div.style.width = (ne.x - sw.x) + 'px';
+                div.style.height = (sw.y - ne.y) + 'px';
+            };
+            overlay.onRemove = function () {
+                overlay.div_.parentNode.removeChild(overlay.div_);
+                overlay.div_ = null;
+            };
+        });
+    };
     return GoogleMapsAPIWrapper;
 }());
 GoogleMapsAPIWrapper.decorators = [
@@ -734,6 +787,23 @@ ImageMapTypeManager.ctorParameters = function () { return [
     { type: GoogleMapsAPIWrapper, },
 ]; };
 
+var OverlayManager = (function () {
+    function OverlayManager(_mapsWrapper) {
+        this._mapsWrapper = _mapsWrapper;
+    }
+    OverlayManager.prototype.USGSOverlay = function (bounds, srcImage) {
+        this._mapsWrapper.USGSOverlay(bounds, srcImage);
+    };
+    return OverlayManager;
+}());
+OverlayManager.decorators = [
+    { type: _angular_core.Injectable },
+];
+/** @nocollapse */
+OverlayManager.ctorParameters = function () { return [
+    { type: GoogleMapsAPIWrapper, },
+]; };
+
 /**
  * AgmMap renders a Google Map.
  * **Important note**: To be able see a map in the browser, you have to define a height for the
@@ -1084,7 +1154,7 @@ AgmMap.decorators = [
     { type: _angular_core.Component, args: [{
                 selector: 'agm-map',
                 providers: [
-                    GoogleMapsAPIWrapper, MarkerManager, ImageMapTypeManager, InfoWindowManager, CircleManager, PolylineManager,
+                    GoogleMapsAPIWrapper, MarkerManager, ImageMapTypeManager, OverlayManager, InfoWindowManager, CircleManager, PolylineManager,
                     PolygonManager, KmlLayerManager, DataLayerManager
                 ],
                 host: {
@@ -2067,6 +2137,51 @@ AgmMarker.propDecorators = {
 };
 
 /**
+ * AgmOverlay renders a map marker inside a {@link AgmMap}.
+ *
+ * ### Example
+ * ```typescript
+ * import { Component } from '@angular/core';
+ *
+ * @Component({
+ *  selector: 'my-map-cmp',
+ *  styles: [`
+ *    .agm-map-container {
+ *      height: 300px;
+ *    }
+ * `],
+ *  template: `
+ *    <agm-map [latitude]="lat" [longitude]="lng" [zoom]="zoom">
+ *      <agm-overlay [bounds]="bounds" [image]="image">
+ *      </agm-overlay>
+ *    </agm-map>
+ *  `
+ * })
+ * ```
+ */
+var AgmOverlay = (function () {
+    function AgmOverlay(_mapTypeManager) {
+        this._mapTypeManager = _mapTypeManager;
+    }
+    /* @internal */
+    AgmOverlay.prototype.ngOnChanges = function () { this._mapTypeManager.USGSOverlay(this.bounds, this.image); };
+    return AgmOverlay;
+}());
+AgmOverlay.decorators = [
+    { type: _angular_core.Directive, args: [{
+                selector: 'agm-overlay'
+            },] },
+];
+/** @nocollapse */
+AgmOverlay.ctorParameters = function () { return [
+    { type: OverlayManager, },
+]; };
+AgmOverlay.propDecorators = {
+    'bounds': [{ type: _angular_core.Input },],
+    'image': [{ type: _angular_core.Input },],
+};
+
+/**
  * AgmPolygon renders a polygon on a {@link AgmMap}
  *
  * ### Example
@@ -2697,8 +2812,8 @@ var NoOpMapsAPILoader = (function () {
  * `],
  *  template: `
  *    <agm-map [latitude]="lat" [longitude]="lng" [zoom]="zoom">
- *      <agm-marker [latitude]="lat" [longitude]="lng" [label]="'M'">
- *      </agm-marker>
+ *      <agm-image-map-type [mapLayerId]="'openstreetmap'" [options]=imageMapOptions>
+ *      </agm-image-map-type>
  *    </agm-map>
  *  `
  * })
@@ -2712,8 +2827,6 @@ var AgmImageMapType = (function () {
     AgmImageMapType.prototype.ngOnChanges = function () { this._mapTypeManager.addMapType(this.mapLayerId, this.options); };
     /** @internal */
     AgmImageMapType.prototype.toString = function () { return 'ImageMapType-' + this.mapLayerId.toString(); };
-    /** @internal */
-    AgmImageMapType.prototype.ngOnDestroy = function () { };
     return AgmImageMapType;
 }());
 AgmImageMapType.decorators = [
@@ -2737,7 +2850,7 @@ function coreDirectives() {
     return [
         AgmMap, AgmMarker, AgmInfoWindow, AgmCircle,
         AgmPolygon, AgmPolyline, AgmPolylinePoint, AgmKmlLayer,
-        AgmDataLayer, AgmImageMapType
+        AgmDataLayer, AgmImageMapType, AgmOverlay
     ];
 }
 
@@ -2777,6 +2890,7 @@ exports.AgmInfoWindow = AgmInfoWindow;
 exports.AgmKmlLayer = AgmKmlLayer;
 exports.AgmDataLayer = AgmDataLayer;
 exports.AgmMarker = AgmMarker;
+exports.AgmOverlay = AgmOverlay;
 exports.AgmPolygon = AgmPolygon;
 exports.AgmPolyline = AgmPolyline;
 exports.AgmPolylinePoint = AgmPolylinePoint;
@@ -2785,6 +2899,7 @@ exports.CircleManager = CircleManager;
 exports.InfoWindowManager = InfoWindowManager;
 exports.MarkerManager = MarkerManager;
 exports.ImageMapTypeManager = ImageMapTypeManager;
+exports.OverlayManager = OverlayManager;
 exports.PolygonManager = PolygonManager;
 exports.PolylineManager = PolylineManager;
 exports.KmlLayerManager = KmlLayerManager;

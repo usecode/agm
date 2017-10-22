@@ -150,6 +150,59 @@ var GoogleMapsAPIWrapper = (function () {
             map.mapTypes.set(id, mapType);
         });
     };
+    GoogleMapsAPIWrapper.prototype.USGSOverlay = function (bounds, image) {
+        return this._map.then(function (map) {
+            var overlay = new google.maps.OverlayView();
+            var boundsLatLng = new google.maps.LatLngBounds(new google.maps.LatLng(bounds[0], bounds[1]), new google.maps.LatLng(bounds[2], bounds[3]));
+            // Initialize all properties.
+            overlay.bounds_ = boundsLatLng;
+            overlay.image_ = image;
+            overlay.map_ = map;
+            // Define a property to hold the image's div. We'll
+            // actually create this div upon receipt of the onAdd()
+            // method so we'll leave it null for now.
+            overlay.div_ = null;
+            overlay.setMap(map);
+            overlay.onAdd = function () {
+                var div = document.createElement('div');
+                div.style.borderStyle = 'none';
+                div.style.borderWidth = '0px';
+                div.style.position = 'absolute';
+                // Create the img element and attach it to the div.
+                var img = document.createElement('img');
+                img.src = this.image_;
+                img.style.width = '100%';
+                img.style.height = '100%';
+                img.style.position = 'absolute';
+                div.appendChild(img);
+                overlay.div_ = div;
+                // Add the element to the "overlayLayer" pane.
+                var panes = overlay.getPanes();
+                panes.overlayLayer.appendChild(div);
+            };
+            overlay.draw = function () {
+                // We use the south-west and north-east
+                // coordinates of the overlay to peg it to the correct position and size.
+                // To do this, we need to retrieve the projection from the overlay.
+                var overlayProjection = overlay.getProjection();
+                // Retrieve the south-west and north-east coordinates of this overlay
+                // in LatLngs and convert them to pixel coordinates.
+                // We'll use these coordinates to resize the div.
+                var sw = overlayProjection.fromLatLngToDivPixel(overlay.bounds_.getSouthWest());
+                var ne = overlayProjection.fromLatLngToDivPixel(overlay.bounds_.getNorthEast());
+                // Resize the image's div to fit the indicated dimensions.
+                var div = overlay.div_;
+                div.style.left = sw.x + 'px';
+                div.style.top = ne.y + 'px';
+                div.style.width = (ne.x - sw.x) + 'px';
+                div.style.height = (sw.y - ne.y) + 'px';
+            };
+            overlay.onRemove = function () {
+                overlay.div_.parentNode.removeChild(overlay.div_);
+                overlay.div_ = null;
+            };
+        });
+    };
     return GoogleMapsAPIWrapper;
 }());
 GoogleMapsAPIWrapper.decorators = [

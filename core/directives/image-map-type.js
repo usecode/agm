@@ -16,8 +16,8 @@ import { ImageMapTypeManager } from '../services/managers/image-map-type-manager
  * `],
  *  template: `
  *    <agm-map [latitude]="lat" [longitude]="lng" [zoom]="zoom">
- *      <agm-marker [latitude]="lat" [longitude]="lng" [label]="'M'">
- *      </agm-marker>
+ *      <agm-image-map-type [mapLayerId]="'openstreetmap'" [options]=imageMapOptions>
+ *      </agm-image-map-type>
  *    </agm-map>
  *  `
  * })
@@ -31,8 +31,6 @@ var AgmImageMapType = (function () {
     AgmImageMapType.prototype.ngOnChanges = function () { this._mapTypeManager.addMapType(this.mapLayerId, this.options); };
     /** @internal */
     AgmImageMapType.prototype.toString = function () { return 'ImageMapType-' + this.mapLayerId.toString(); };
-    /** @internal */
-    AgmImageMapType.prototype.ngOnDestroy = function () { };
     return AgmImageMapType;
 }());
 export { AgmImageMapType };

@@ -54,4 +54,5 @@ export declare class GoogleMapsAPIWrapper {
      */
     triggerMapEvent(eventName: string): Promise<void>;
     setMapTypes(id: string, options: mapTypes.ImageMapTypeOptions): Promise<void>;
+    USGSOverlay(bounds: any, image: any): Promise<void>;
 }

@@ -1,8 +1,8 @@
 import { OnChanges } from '@angular/core';
-import { ImageMapTypeManager } from '../services/managers/image-map-type-manager';
+import { OverlayManager } from '../services/managers/overlay-manager';
 import * as mapTypes from '../services/google-maps-types';
 /**
- * AgmImageMapType renders a map marker inside a {@link AgmMap}.
+ * AgmOverlay renders a map marker inside a {@link AgmMap}.
  *
  * ### Example
  * ```typescript
@@ -17,25 +17,23 @@ import * as mapTypes from '../services/google-maps-types';
  * `],
  *  template: `
  *    <agm-map [latitude]="lat" [longitude]="lng" [zoom]="zoom">
- *      <agm-image-map-type [mapLayerId]="'openstreetmap'" [options]=imageMapOptions>
- *      </agm-image-map-type>
+ *      <agm-overlay [bounds]="bounds" [image]="image">
+ *      </agm-overlay>
  *    </agm-map>
  *  `
  * })
  * ```
  */
-export declare class AgmImageMapType implements OnChanges {
+export declare class AgmOverlay implements OnChanges {
     private _mapTypeManager;
     /**
      * The options of google.maps.ImageMapType.
      */
-    options: mapTypes.ImageMapTypeOptions;
+    bounds: mapTypes.LatLngBounds;
     /**
      * The mapLayerId that defines the name of new layer.
      */
-    mapLayerId: string;
-    constructor(_mapTypeManager: ImageMapTypeManager);
+    image: string;
+    constructor(_mapTypeManager: OverlayManager);
     ngOnChanges(): void;
-    /** @internal */
-    toString(): string;
 }
